@@ -62,17 +62,22 @@ class MakeHtml:
         return self.contents
     
     def getCententHtml(self, contentId):
-        viewType = "styled_view"
+        viewType = "view"
         params = {"expand": "body.{}".format(viewType)}
         contentUrl = "{}/rest/api/content/{}".format(self.baseUrl, contentId)
         res = self.sendRequest(contentUrl, "GET", params).json()
         htmlBody = res['body'][viewType]['value']
         self.htmlSoup = bs(htmlBody, 'html.parser')
+        print (self.htmlSoup)
         
-    def rebuildTable(self):
+    def rebuildFormat(self):
         # replace all 'th' tag to 'tr' tag
         for th in self.htmlSoup.findAll('th'):
             th.name = 'td'
+        
+        # beautify table view
+        for table in self.htmlSoup.findAll('table'):
+            table.attrs['data-ke-style'] = 'style12'
            
         # append <code> tag inside <pre> tag for beautify code block
         for pre in self.htmlSoup.findAll('pre', class_='syntaxhighlighter-pre'):
@@ -80,6 +85,12 @@ class MakeHtml:
             newTag.string = pre.string
             pre.string = ""
             pre.append(newTag)
+
+        # use only body and add cover
+#         customBody = self.htmlSoup.find('body')
+#         customBody.attrs = {'id':'Content', 'style': 'padding: 5px;'}
+#         customBody.name = 'div'
+#         self.htmlSoup = customBody
             
     # upload image to imgbb and return image's url
     def uploadImg(self, imgBin):
