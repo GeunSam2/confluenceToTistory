@@ -86,11 +86,6 @@ class MakeHtml:
             pre.string = ""
             pre.append(newTag)
 
-        # use only body and add cover
-#         customBody = self.htmlSoup.find('body')
-#         customBody.attrs = {'id':'Content', 'style': 'padding: 5px;'}
-#         customBody.name = 'div'
-#         self.htmlSoup = customBody
             
     # upload image to imgbb and return image's url
     def uploadImg(self, imgBin):
