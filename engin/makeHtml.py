@@ -119,7 +119,7 @@ class MakeHtml:
         htmlBody = res['body'][viewType]['value']
         self.htmlSoup = bs(htmlBody, 'html.parser')
         self.rebuildFormat()
-        self.rebuildImgStore()
+        #self.rebuildImgStore()
         return self.htmlSoup
         
         
@@ -188,7 +188,7 @@ def main():
 
     contendId = input('input content ID : ')
     htmlSoup = make1.getCententHtml(contendId)
-    return htmlSoup
+    return htmlSoup, make1.headers
 
 if __name__ == "__main__":
     main()
