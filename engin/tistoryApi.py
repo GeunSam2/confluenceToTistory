@@ -73,18 +73,18 @@ class Tistory:
         imgUpload = "https://www.tistory.com/apis/post/attach"
         res = requests.post(imgUpload, params=params, files=files).json()
         uploadedImg = res['tistory']['replacer'].replace('##_1N', '##_Image')
-        
+        print (uploadedImg)
         if (uploadedImg.split('|')[1] == ''):
             # upload to imgbb for take image thumbanil for large image 
-            imgUpload = "https://api.imgbb.com/1/upload"
-            params = {'key': self.secret.apiKeyImgbb}
+            imgbbUrl = "https://api.imgbb.com/1/upload"
+            imgbbParam = {'key': self.secret.apiKeyImgbb}
             data = {'image': imgBin}
-            imgThumb = requests.post(imgUpload, params=params, files=data)
+            imgThumb = requests.post(imgbbUrl, params=imgbbParam, files=data)
             imgThumbUrl = imgThumb.json()['data']['display_url']
-            imgBin = requests.get(imgThumbUrl).content
-            files = {'uploadedfile': (imgName, imgBin)}
-            res = requests.post(imgUpload, params=params, files=files).json()
-            uploadedImg = res['tistory']['replacer'].replace('##_1N', '##_Image')
+            imgBin2 = requests.get(imgThumbUrl).content
+            files2 = {'uploadedfile': (imgName+'v2', imgBin2)}
+            res2 = requests.post(imgUpload, params=params, files=files2).json()
+            uploadedImg = res2['tistory']['replacer'].replace('##_1N', '##_Image')
             
         return uploadedImg
     
@@ -127,7 +127,8 @@ def main():
     ti.getAccessToken()
     ti.getBlogList()
     
-    blogName = intput('블로그 이름 : ')
+    #categoName = intput()
+    blogName = 'ykarma1996'
     ti.getcatego(blogName)
     
     title = input('게시물 제목 : ')
