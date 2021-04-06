@@ -12,7 +12,7 @@ class MakeHtml:
         self.confluenceSecretkey = secret.confluenceSecretkey
         
         # redirectUrl
-        self.redirectUrl = 'https://ykarma1996.tistory.com'
+        self.redirectUrl = 'https://mc.modutech.win:11996/oauth/confluence'
         
         # imgBB api key
         self.imgApiKey = secret.apiKeyImgbb
@@ -30,15 +30,12 @@ class MakeHtml:
             'client_id': self.confluenceAppId,
             'scope': 'read:confluence-space.summary read:confluence-content.all read:confluence-content.summary read:confluence-props search:confluence',
             'redirect_uri': self.redirectUrl,
-            'state': 'random',
+            'state': '123',
             'response_type': 'code',
             'prompt': 'consent'
         }
-        res = requests.get(makeLinkUrl, params=params)
-        if (res.status_code == 200):
-            print (res.url)
-        else:
-            print ('Made Url is not available')    
+        res = requests.Request('GET', makeLinkUrl, params=params).prepare().url
+        return res
     
     # fill api access information and check api can speak
     def loginProcess(self, authCode, userName):
@@ -119,7 +116,7 @@ class MakeHtml:
         htmlBody = res['body'][viewType]['value']
         self.htmlSoup = bs(htmlBody, 'html.parser')
         self.rebuildFormat()
-        #self.rebuildImgStore()
+        self.rebuildImgStore()
         return self.htmlSoup
         
         
@@ -188,7 +185,7 @@ def main():
 
     contendId = input('input content ID : ')
     htmlSoup = make1.getCententHtml(contendId)
-    return htmlSoup, make1.headers
+    return htmlSoup
 
 if __name__ == "__main__":
     main()
