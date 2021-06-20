@@ -13,4 +13,4 @@ publish : build
 	echo '## Check Container live'
 	if [ 1 -eq  $(shell docker ps | grep convconf | wc -l) ];then echo '## Remove Container'; docker stop convconf; sleep 2; fi
 	echo '## Run New Container'
-	docker run -dit -p $(PORT):443 -p 8001:8888 -v $(shell pwd):/app --rm --name convconf $(IMGFULLNAME)
+	docker run -dit -p $(PORT):80 -p 8001:8888 -v $(shell pwd):/app --rm --name convconf $(IMGFULLNAME)

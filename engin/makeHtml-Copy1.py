@@ -41,8 +41,12 @@ class MakeHtml:
             'response_type': 'code',
             'prompt': 'consent'
         }
-        res = requests.Request('GET', makeLinkUrl, params=params).prepare().url
-        return res
+        url = requests.Request('GET', makeLinkUrl, params=params).prepare().url
+        returnJson = {
+            "url": url,
+            "state": state
+        }
+        return returnJson
     
     # fill api access information and check api can speak
     def loginProcess(self, authCode):
@@ -60,33 +64,39 @@ class MakeHtml:
         if (authRes.status_code == 200):
             token = authRes.json()['access_token']
             print ('Success to get Token!')
+            print ("Tobe : Bearer {}".format(token))
             return "Bearer {}".format(token)
         else:
             print ('Auth Fail!')
             return False
         
-        self.headers["Authorization"] = "Bearer {}".format(token)
         
+        #self.headers["Authorization"] = "Bearer {}".format(token)
+        
+    def selectSpace(self, token):
         getBaseUrl = 'https://api.atlassian.com/oauth/token/accessible-resources'
         getBaseRes = requests.get(getBaseUrl, headers=self.headers)
         if (getBaseRes.status_code == 200):
-            print (getBaseRes.json())
-            baseId = getBaseRes.json()[1]['id']
-            self.baseUrl = 'https://api.atlassian.com/ex/confluence/{}'.format(baseId)
+            baseId = getBaseRes.json()
             print ("Success get Id of domain!")
+            print (baseId)
+            return baseId
+            
+            #self.baseUrl = 'https://api.atlassian.com/ex/confluence/{}'.format(baseId)
         else:
+            
             print (getBaseRes.status_code)
             return False
         
-        # check api
-        testUrl = "{}/rest/api/space".format(self.baseUrl)
-        print (testUrl)
-        testRes = requests.get(getBaseUrl, headers=self.headers)
-        if (testRes.status_code == 200):
-            print ('Success login!')
-        else:
-            print (testRes.status_code)
-            return False
+#         # check api
+#         testUrl = "{}/rest/api/space".format(self.baseUrl)
+#         print (testUrl)
+#         testRes = requests.get(getBaseUrl, headers=self.headers)
+#         if (testRes.status_code == 200):
+#             print ('Success login!')
+#         else:
+#             print (testRes.status_code)
+#             return False
         
         
     
@@ -176,18 +186,16 @@ class MakeHtml:
             img.attrs['data-base-url'] = ""
         print (self.htmlSoup)
     
-    def saveHtmlFile(self, fileName):
-        with open("{}.html".format(fileName), "w", -1, "utf-8") as f:
-            f.write(str(self.htmlSoup))
+#     def saveHtmlFile(self, fileName):
+#         with open("{}.html".format(fileName), "w", -1, "utf-8") as f:
+#             f.write(str(self.htmlSoup))
 
             
 def main():
     make1 = MakeHtml()
-    link = make1.oauthMakeLink()
-    print (link)
+    make1.oauthMakeLink()
     authCode = input('Auth Code : ')
-    userName = "geunsam2"
-    make1.loginProcess(authCode, userName)
+    make1.loginProcess(authCode)
     make1.getSpaceList()
 
     spaceName = input ('input space key : ')
@@ -195,10 +203,7 @@ def main():
 
     contendId = input('input content ID : ')
     htmlSoup = make1.getCententHtml(contendId)
-    fileName = input('파일명을 입력하세요 : ')
-    make1.saveHtmlFile('output1.html')
     return htmlSoup
 
 if __name__ == "__main__":
-
     main()
