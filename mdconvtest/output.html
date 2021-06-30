@@ -1,0 +1,481 @@
+<content>
+    <hr />
+    <h3 id="id-[confluencetotistory-3]tistoryapi및OAuth2.0-이슈개요">이슈개요</h3>
+    <ul>
+        <li>
+            <p>tistory api를 활용하여 게시물 포스팅</p>
+        </li>
+    </ul>
+    <p>tistory에서는 굉장히 개발자 친화적인 <a class="external-link" href="https://tistory.github.io/document-tistory-apis/"
+            rel="nofollow">api 문서</a>를 제공 하고 있었다. <del>(내가 꼬인건지 모르겠지만, 외국 솔루션의 Document 들은 괜히 공식 문서랍시고 설명들을 쓸데없이 어렵게 써놓고
+            개발자들이 이것 저것 찾아봐야하게 문서를 써놓는 것 같다) </del>&lt; - 지금 다시 읽어보니 이때 왜 이렇게 화가 나있지..</p>
+    <p>티스토리의 Open Api는 api사용시 인증방식을 OAuth2.0을 활용하도록 만들어 그 기능을 제공하고 있다. 나중에 사용자들에게 서비스를 제공할 것을 생각해 보니 컨플루언서의 API 인증방식도
+        가능하다면 OAuth2.0을 활요하면 좋지 않을까 생각하고 찾아보니 해당 인증방식을 지원하고 있었다. 그래서 인증 방식을 모두 OAuth 방식을 활용할 수 있도록 변경하기로 하였다.</p>
+    <p></p>
+    <h2 id="id-[confluencetotistory-3]tistoryapi및OAuth2.0-티스토리OpenAPI활용하여게시물포스팅하기">티스토리 OpenAPI 활용하여 게시물 포스팅 하기</h2>
+    <h3 id="id-[confluencetotistory-3]tistoryapi및OAuth2.0-TistoryOpenAPI앱등록">Tistory Open API 앱 등록</h3>
+    <p>티스토리의 Open API를 사용하기 위해서는 앱 등록을 통해서, 제작할 서비스에 대한 내용을 간단하게 등록하고 <code>client_id</code> 라는 것을 발급 받아야 한다. Open API를
+        활용할 시, OAuth 인증 진행 초반 부터 이 값이 없다면 API를 사용할 수 없다.</p>
+    <p>앱 등록시 입력하는 <code>CallBack</code> 항목에는 이후 서비스될 어플리케이션의 인증 API서버 주소를 써주어, 인증 후에 토큰값을 리다이렉트 하여 받을 수 있도록 한다. 아직 개발을
+        진행하는 단계라서 주소가 없는 경우에는 임의의 동작하는 주소를 작성하여도 추후에 앱 관리에서 수정할 수 있으니 걱정하지 않고 발급하여도 된다.</p>
+    <ul>
+        <li>
+            <p>티스토리 Open API 앱 등록 페이지 : <a class="external-link"
+                    href="https://www.tistory.com/guide/api/manage/register"
+                    rel="nofollow">https://www.tistory.com/guide/api/manage/register</a></p>
+        </li>
+    </ul><span class="confluence-embedded-file-wrapper image-center-wrapper"><img
+            class="confluence-embedded-image image-center" data-base-url="" data-height="611" data-image-src=""
+            data-linked-resource-container-id="14778444" data-linked-resource-container-version="5"
+            data-linked-resource-content-type="image/png" data-linked-resource-default-alias="image-20210325-174512.png"
+            data-linked-resource-id="14745929" data-linked-resource-type="attachment" data-linked-resource-version="1"
+            data-media-id="99c7b2b8-110b-43a1-9a4f-ef2383d2cf95" data-media-type="file"
+            data-unresolved-comment-count="0" data-width="760" loading="lazy"
+            src="https://i.ibb.co/98dxTWB/f60733a6fe9f.png" /></span>
+    <p>앱 등록이 완료되면, <code>App ID</code> 와 <code>Secret Key</code> 를 발급해주는데, 이후 Open Api 활용시 사용되는 값이니 잘 기억해 두도록 한다. (이후 앱
+        관리 화면에서 다시 확인할 수 있다.)</p><span class="confluence-embedded-file-wrapper image-center-wrapper"><img
+            class="confluence-embedded-image image-center" data-base-url="" data-height="318" data-image-src=""
+            data-linked-resource-container-id="14778444" data-linked-resource-container-version="5"
+            data-linked-resource-content-type="image/png" data-linked-resource-default-alias="image-20210325-174412.png"
+            data-linked-resource-id="14975143" data-linked-resource-type="attachment" data-linked-resource-version="1"
+            data-media-id="86144292-c11b-4bdc-ae1e-51b371683236" data-media-type="file"
+            data-unresolved-comment-count="0" data-width="787" loading="lazy"
+            src="https://i.ibb.co/FhmBK9r/a72acaf801bc.png" /></span>
+    <h3 id="id-[confluencetotistory-3]tistoryapi및OAuth2.0-OAuth2.0으로인증받기">OAuth2.0 으로 인증받기</h3>
+    <p>OAuth2.0의 간단한 동작 방식은 다음과 같다.</p><span class="confluence-embedded-file-wrapper image-center-wrapper"><img
+            class="confluence-embedded-image image-center" data-base-url="" data-height="330" data-image-src=""
+            data-linked-resource-container-id="14778444" data-linked-resource-container-version="5"
+            data-linked-resource-content-type="image/png" data-linked-resource-default-alias="image-20210329-094045.png"
+            data-linked-resource-id="20316200" data-linked-resource-type="attachment" data-linked-resource-version="1"
+            data-media-id="27e0c1ce-436a-4953-a4c1-dc5ec7f3e244" data-media-type="file"
+            data-unresolved-comment-count="0" data-width="726" loading="lazy"
+            src="https://i.ibb.co/VNCZ468/200cd47d04b0.png" /></span>
+    <ol>
+        <li>
+            <p>API를 활용할 서비스(우리가 개발할 서비스)에서 특정 서비스의 사용자 인증이 필요한 경우</p>
+        </li>
+        <li>
+            <p>인증이 필요한 서비스(tistory)에 대해서 로그인 팝업등을 띄워주면 사용자가 직접 로그인 하고</p>
+        </li>
+        <li>
+            <p>로그인이 성공할 경우 인증이 필요한 서비스(tistory)에서 API를 활용할 서비스(우리가 개발할 서비스)로 인증코드를 발행하여 사전에 등록한 주소(e.g. 개발할 서비스의 백앤드)로
+                전달한다.</p>
+        </li>
+        <li>
+            <p>API를 활용할 서비스는 받은 인증코드를 활용하여 인증이 필요한 서비스로부터 적절한 권한이 반영된 토큰을 발행받아 사용할 수 있다.</p>
+        </li>
+    </ol>
+    <p>아직 프론트를 개발하지 않은 상태에서 인증과정을 테스트하기 위해 작성한 POC는 다음과 같았다.</p>
+    <div class="code panel pdl conf-macro output-block" data-hasbody="true"
+        data-macro-id="9663d6cf-08b3-480e-9a6e-c03cf7f86e7a" data-macro-name="code" style="border-width: 1px;">
+        <div class="codeContent panelContent pdl">
+            <pre class="syntaxhighlighter-pre"
+                data-syntaxhighlighter-params="brush: py; gutter: false; theme: Confluence" data-theme="Confluence"><code>import requests
+
+class Tistory:
+    def __init__(self):
+        pass
+    def getAuthCode(self):
+        # this section will remake at frontend. this is poc code
+        # change redirectUrl for realservice url later
+        authCodeUrl = "https://www.tistory.com/oauth/authorize"
+        params = {
+            "client_id": "앱 등록시 받은 App ID",
+            "redirect_uri": "앱 등록시 등록한 CallBack",
+            "response_type": "code"
+        }
+        res = requests.get(authCodeUrl, params=params)
+        
+        # action this url at browser, and get AccessToken manually just now.
+        print ("브라우저에 주소 호출하여 로그인 : {}".format(res.url))
+        
+    def getAccessToken(self, authCode="getFromClient"):
+        authCode = input("authCode : ") # delete this later
+        
+        getTokenUrl = "https://www.tistory.com/oauth/access_token"
+        params = {
+            "client_id": "앱 등록시 받은 App ID",
+            "client_secret": "앱 등록시 받은 Secret Key",
+            "redirect_uri": "앱 등록시 등록한 CallBack",
+            "code": authCode,
+            "grant_type": "authorization_code"
+        }
+        res  = requests.get(getTokenUrl, params=params)
+        print (res.text)
+
+
+def main():
+    ti = Tistory()
+    ti.getAuthCode()
+    ti.getAccessToken()
+    
+if __name__ == "__main__":
+    main()</code></pre>
+        </div>
+    </div>
+    <p><code>getAuthCode</code> 는 사용자가 로그인 할때 접속해야 하는 페이지의 URL을 리턴하는 함수인데, 원래는 프론트가 개발이 되었다면 로그인 팝업을 띄우는 기능에 속하는 기능이다.
+        현재는 프론트가 없는 상태라, 해당 함수가 리턴해주는 URL을 브라우저에 직접 입력하여 로그인 과정을 거쳐야 한다.</p>
+    <p>유의할 점은 <code>redirect_uri</code> 부분인데, 앱 등록시 등록한 CallBack URL을 입력해야 한다. 로그인에 성공할 경우</p>
+    <div class="code panel pdl conf-macro output-block" data-hasbody="true"
+        data-macro-id="87e2160f-e85d-4f7e-875a-70fcd671c009" data-macro-name="code" style="border-width: 1px;">
+        <div class="codeContent panelContent pdl">
+            <pre class="syntaxhighlighter-pre"
+                data-syntaxhighlighter-params="brush: java; gutter: false; theme: Confluence"
+                data-theme="Confluence"><code>http://client.redirect.uri?code=authorizationCode</code></pre>
+        </div>
+    </div>
+    <p>와 같은 형태로 인증코드를 파라미터로 하여 호출되기 때문에 보통은 개발하는 서버에 관련 로직을 넣고, 리스닝 주소를 따로 뽑아서 작성하는 것이 맞다. 하지만 역시 지금은 테스트 환경이기 떄문에, 간단히
+        동작하는 아무 주소나 앱 등록시 작성하고 호출시에도 해당 주소로 리다이렉트 하도록 하였다. 나는 나의 블로그 주소를 사용하였다. (<a class="external-link"
+            href="http://ykarma1996.tistory.com)" rel="nofollow">http://ykarma1996.tistory.com)</a></p><span
+        class="confluence-embedded-file-wrapper image-center-wrapper"><img
+            class="confluence-embedded-image image-center" data-base-url="" data-height="322" data-image-src=""
+            data-linked-resource-container-id="14778444" data-linked-resource-container-version="5"
+            data-linked-resource-content-type="image/png" data-linked-resource-default-alias="image-20210325-184123.png"
+            data-linked-resource-id="17891358" data-linked-resource-type="attachment" data-linked-resource-version="1"
+            data-media-id="8997ffe9-6c96-4448-8dfa-0203a012da0d" data-media-type="file"
+            data-unresolved-comment-count="0" data-width="1032" loading="lazy"
+            src="https://i.ibb.co/JcTZLSy/7faadbdba92e.png" /></span>
+    <p>리다이렉트 된 페이지에서 코드를 확인하면, <code>getAccessToken</code> 함수가 요구하는 입력값에 해당 인증코드를 입력하면 발행되는 토큰을 확인할 수 있다.</p>
+    <h3 id="id-[confluencetotistory-3]tistoryapi및OAuth2.0-페이지생성하기">페이지 생성하기</h3>
+    <ul>
+        <li>
+            <p>블로그 목록 확인</p>
+        </li>
+    </ul>
+    <div class="table-wrap">
+        <table class="confluenceTable" data-ke-style="style12" data-layout="default">
+            <colgroup>
+                <col style="width: 139.0px;" />
+                <col style="width: 352.0px;" />
+                <col style="width: 269.0px;" />
+            </colgroup>
+            <tbody>
+                <tr>
+                    <td class="confluenceTh">
+                        <p><strong>구분</strong></p>
+                    </td>
+                    <td class="confluenceTh">
+                        <p><strong>정보</strong></p>
+                    </td>
+                    <td class="confluenceTh">
+                        <p><strong>비고</strong></p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>API 경로</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p><code>https://www.tistory.com/apis/blog/info</code></p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p> </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>매서드</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>GET</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p> </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Query 파라미터1</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>access_token</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값 : OAuth로 발행받은 토큰</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Query 파라미터2</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>output</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: json (xml or json 가능)</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>호출 목적</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>blogId 확인</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p> </p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <ul>
+        <li>
+            <p>카테고리 목록 확인</p>
+        </li>
+    </ul>
+    <div class="table-wrap">
+        <table class="confluenceTable" data-ke-style="style12" data-layout="default">
+            <colgroup>
+                <col style="width: 139.0px;" />
+                <col style="width: 352.0px;" />
+                <col style="width: 269.0px;" />
+            </colgroup>
+            <tbody>
+                <tr>
+                    <td class="confluenceTh">
+                        <p><strong>구분</strong></p>
+                    </td>
+                    <td class="confluenceTh">
+                        <p><strong>정보</strong></p>
+                    </td>
+                    <td class="confluenceTh">
+                        <p><strong>비고</strong></p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>API 경로</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p><code>https://www.tistory.com/apis/category/list</code></p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p> </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>매서드</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>GET</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p> </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Query 파라미터1</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>access_token</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값 : OAuth로 발행받은 토큰</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Query 파라미터2</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>output</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: json (xml or json 가능)</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Query 파라미터3</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>blogName</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: 블로그목록 api의 blogId</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>호출 목적</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>카테고리 id 확인</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p> </p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <ul>
+        <li>
+            <p>글작성</p>
+        </li>
+    </ul>
+    <p>티스토리 공식 문서에는 쿼리파라미터로만 안내가 되어 있는데, form data로 전송해도 정상동작하였다. 쿼리파라미터로 본문을 넘기면..
+        <code>414 Request-URI Too Long</code> 에러가 뜬다. 지원하는 파라미터가 많아서 개발에 사용한 파라미터만 정리한다. 자세한 내용은 <a
+            class="external-link" href="https://tistory.github.io/document-tistory-apis/apis/v1/post/write.html"
+            rel="nofollow">공식 문서</a>를 참고하자
+    </p>
+    <div class="table-wrap">
+        <table class="confluenceTable" data-ke-style="style12" data-layout="default">
+            <colgroup>
+                <col style="width: 139.0px;" />
+                <col style="width: 325.0px;" />
+                <col style="width: 296.0px;" />
+            </colgroup>
+            <tbody>
+                <tr>
+                    <td class="confluenceTh">
+                        <p><strong>구분</strong></p>
+                    </td>
+                    <td class="confluenceTh">
+                        <p><strong>정보</strong></p>
+                    </td>
+                    <td class="confluenceTh">
+                        <p><strong>비고</strong></p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>API 경로</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p><code>https://www.tistory.com/apis/post/write</code></p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p> </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>매서드</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>POST</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p> </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Form Data 1</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>access_token</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값 : OAuth로 발행받은 토큰</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Form Data 2</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>output</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: json (xml or json 가능)</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Form Data 3</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>blogName</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: 블로그목록 api의 blogId</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Form Data 4</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>title</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: 글 제목(string)</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Form Data 5</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>content</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: 본문 내용(string)</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Form Data 6</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>visibility</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: (0: 비공개 - 기본값, 1: 보호, 3: 발행)</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Form Data 7</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>category</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: 카테고리 아이디</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Form Data 8</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>tag</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: 태그(','로 공백없이 구분한 string)</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>Form Data 9</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>acceptCommnet</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>값: 댓글 허용 (0, 1 - 기본값)</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="confluenceTd">
+                        <p>호출 목적</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p>글 작성</p>
+                    </td>
+                    <td class="confluenceTd">
+                        <p> </p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p>글 작성을 할때 html 문서를 일반 스트링으로 넘기면 제대로 해석하지 못하고 그냥 문자열로 내용이 저장될까봐 걱정했는데, 다행히 적절하게 해석되어 바로 원하는 형태로 보여졌다.</p>
+    <p></p>
+</content>
