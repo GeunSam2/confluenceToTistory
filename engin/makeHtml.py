@@ -12,25 +12,25 @@ class MakeHtml:
         self.confluenceSecretkey = secret.confluenceSecretkey
         
         # redirectUrl
-        self.redirectUrl = 'https://mc.modutech.win:11996/oauth/confluence'
+        self.redirectUrl = 'https://oauth.modutech.win/oauth/confluence'
         
         # imgBB api key
         self.imgApiKey = secret.apiKeyImgbb
         # user's confluence space baseurl
-        self.baseUrl = "https://api.atlassian.com/ex/confluence/"
+        self.baseUrl = "https://api.atlassian.com/ex/confluence"
         # header for api requests
         self.headers = {"Authorization": "Bearer {token}", 'Accept': 'application/json'}
         # htmlBodySoup
         self.htmlSoup = ""
     
-    def oauthMakeLink(self):
+    def generate_random_key(self, length):
         import random
         import string
+        return ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(length))
+    
+    def oauthMakeLink(self):
 
-        def generate_random_key(length):
-            return ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(length))
-        
-        state = generate_random_key(30)
+        state = self.generate_random_key(30)
         makeLinkUrl = 'https://auth.atlassian.com/authorize'
         params = {
             'audience': 'api.atlassian.com',
@@ -41,59 +41,57 @@ class MakeHtml:
             'response_type': 'code',
             'prompt': 'consent'
         }
-        res = requests.Request('GET', makeLinkUrl, params=params).prepare().url
-        return res
+        makedUrl = requests.Request('GET', makeLinkUrl, params=params).prepare().url
+        
+        return makedUrl, state
     
     # fill api access information and check api can speak
     def loginProcess(self, authCode):
         getTokenUrl = 'https://auth.atlassian.com/oauth/token'
         headers = self.headers
         headers['Content-Type'] = 'application/json'
-        data = {
+        jsonData = {
             'grant_type': 'authorization_code',
             'client_id': self.confluenceAppId,
             'client_secret': self.confluenceSecretkey,
             'code': authCode,
             'redirect_uri': self.redirectUrl
         }
-        authRes = requests.post(getTokenUrl, data=json.dumps(data), headers=headers)
+        authRes = requests.post(getTokenUrl, json=jsonData, headers=headers)
+        print (authRes.text)
         if (authRes.status_code == 200):
             token = authRes.json()['access_token']
+            
+            self.headers["Authorization"] = "Bearer {}".format(token)
+            print ("Bearer {}".format(token))
             print ('Success to get Token!')
             return "Bearer {}".format(token)
         else:
             print ('Auth Fail!')
             return False
         
-        self.headers["Authorization"] = "Bearer {}".format(token)
-        
+    # get domain
+    def getDomain(self, token):
         getBaseUrl = 'https://api.atlassian.com/oauth/token/accessible-resources'
-        getBaseRes = requests.get(getBaseUrl, headers=self.headers)
+        header = self.headers
+        header['Authorization'] = token
+        getBaseRes = requests.get(getBaseUrl, headers=header)
         if (getBaseRes.status_code == 200):
             print (getBaseRes.json())
-            baseId = getBaseRes.json()[1]['id']
-            self.baseUrl = 'https://api.atlassian.com/ex/confluence/{}'.format(baseId)
+#             baseId = getBaseRes.json()[1]['id']
+#             self.baseUrl = 'https://api.atlassian.com/ex/confluence/{}'.format(baseId)
             print ("Success get Id of domain!")
+            return (getBaseRes.json())
         else:
             print (getBaseRes.status_code)
             return False
         
-        # check api
-        testUrl = "{}/rest/api/space".format(self.baseUrl)
-        print (testUrl)
-        testRes = requests.get(getBaseUrl, headers=self.headers)
-        if (testRes.status_code == 200):
-            print ('Success login!')
-        else:
-            print (testRes.status_code)
-            return False
-        
-        
-    
     # get space list from 
-    def getSpaceList(self):
-        spaceListUrl = "{}/rest/api/space".format(self.baseUrl)
-        res = requests.get(spaceListUrl, headers=self.headers).json()
+    def getSpaceList(self, baseId, token):
+        header = self.headers
+        header['Authorization'] = token
+        spaceListUrl = "{}/{}/rest/api/space".format(self.baseUrl, baseId)
+        res = requests.get(spaceListUrl, headers=header).json()
         
         # spaceListDict {"sample": {"id":1234, "key": "SPACE1", "selfUrl": "https://example.com"}}
         spaces = {}
@@ -104,10 +102,12 @@ class MakeHtml:
         print (spaces)
         return spaces
 
-    def getContentList(self, spaceKey):
+    def getContentList(self, baseId, spaceKey, token):
+        header = self.headers
+        header['Authorization'] = token
         params = {"spaceKey": spaceKey}
-        contentListUrl = "{}/rest/api/content".format(self.baseUrl)
-        res = requests.get(contentListUrl, params=params, headers=self.headers).json()
+        contentListUrl = "{}/{}/rest/api/content".format(self.baseUrl, baseId)
+        res = requests.get(contentListUrl, params=params, headers=header).json()
         
         # contentListDict {"id(num)": "title"}
         contents = {}
@@ -117,41 +117,45 @@ class MakeHtml:
         print (contents)
         return contents
     
-    def getCententHtml(self, contentId):
+    def getCententHtml(self, baseId, contentId, token):
         viewType = "view"
+        header = self.headers
+        header['Authorization'] = token
         params = {"expand": "body.{}".format(viewType)}
-        contentUrl = "{}/rest/api/content/{}".format(self.baseUrl, contentId)
-        res = requests.get(contentUrl, params=params, headers=self.headers).json()
+        contentUrl = "{}/{}/rest/api/content/{}".format(self.baseUrl, baseId, contentId)
+        res = requests.get(contentUrl, params=params, headers=header).json()
         htmlBody = res['body'][viewType]['value']
-        self.htmlSoup = bs(htmlBody, 'html.parser')
-        self.rebuildFormat()
-        self.rebuildImgStore()
-        return self.htmlSoup
+        htmlSoup = bs(htmlBody, 'html.parser')
+        rebuildedSoup = self.rebuildFormat(htmlSoup)
+        finalSoup = self.rebuildImgStore(rebuildedSoup)
+        return finalSoup
         
         
-    def rebuildFormat(self):
+    def rebuildFormat(self, htmlSoup):
         # wrap with single tag
-        new_tag = self.htmlSoup.new_tag('content')
-        body_children = list(self.htmlSoup.children)
-        self.htmlSoup.clear()
-        self.htmlSoup.append(new_tag)
+        new_tag = htmlSoup.new_tag('content')
+        body_children = list(htmlSoup.children)
+        htmlSoup.clear()
+        htmlSoup.append(new_tag)
         for child in body_children:
             new_tag.append(child)  
         
         # replace all 'th' tag to 'tr' tag
-        for th in self.htmlSoup.findAll('th'):
+        for th in htmlSoup.findAll('th'):
             th.name = 'td'
         
         # beautify table view
-        for table in self.htmlSoup.findAll('table'):
+        for table in htmlSoup.findAll('table'):
             table.attrs['data-ke-style'] = 'style12'
            
         # append <code> tag inside <pre> tag for beautify code block
-        for pre in self.htmlSoup.findAll('pre', class_='syntaxhighlighter-pre'):
-            newTag = self.htmlSoup.new_tag('code')
+        for pre in htmlSoup.findAll('pre', class_='syntaxhighlighter-pre'):
+            newTag = htmlSoup.new_tag('code')
             newTag.string = pre.string
             pre.string = ""
             pre.append(newTag)
+        
+        return htmlSoup
 
             
     # upload image to imgbb and return image's url
@@ -164,8 +168,8 @@ class MakeHtml:
         return res['data']['url']
         
     # replace <img> tag for public viwer
-    def rebuildImgStore(self):
-        for img in self.htmlSoup.findAll('img'):
+    def rebuildImgStore(self, htmlSoup):
+        for img in htmlSoup.findAll('img'):
             imgSrc = img.attrs['src']
             res = requests.get(imgSrc, headers=self.headers)
             
@@ -174,11 +178,12 @@ class MakeHtml:
             img.attrs['src'] = imgUrl
             img.attrs['data-image-src'] = ""
             img.attrs['data-base-url'] = ""
-        print (self.htmlSoup)
+        print (htmlSoup)
+        return htmlSoup
     
-    def saveHtmlFile(self, fileName):
+    def saveHtmlFile(self, fileName, htmlSoup):
         with open("{}.html".format(fileName), "w", -1, "utf-8") as f:
-            f.write(str(self.htmlSoup))
+            f.write(str(htmlSoup))
 
             
 def main():
@@ -186,15 +191,18 @@ def main():
     link = make1.oauthMakeLink()
     print (link)
     authCode = input('Auth Code : ')
-    userName = "geunsam2"
-    make1.loginProcess(authCode, userName)
-    make1.getSpaceList()
+    make1.loginProcess(authCode)
+    
+    make1.getDomain()
+    
+    baseId = input ('baseId : ')
+    make1.getSpaceList(baseId)
 
     spaceName = input ('input space key : ')
-    lists = make1.getContentList(spaceName)
+    lists = make1.getContentList(baseId, spaceName)
 
     contendId = input('input content ID : ')
-    htmlSoup = make1.getCententHtml(contendId)
+    htmlSoup = make1.getCententHtml(baseId, contendId)
     fileName = input('파일명을 입력하세요 : ')
     make1.saveHtmlFile('output1.html')
     return htmlSoup
