@@ -35,7 +35,7 @@ class MakeHtml:
         params = {
             'audience': 'api.atlassian.com',
             'client_id': self.confluenceAppId,
-            'scope': 'read:confluence-space.summary read:confluence-content.all read:confluence-content.summary read:confluence-props search:confluence',
+            'scope': 'read:confluence-space.summary read:confluence-content.all read:confluence-content.summary read:confluence-props search:confluence read:confluence-content.permission',
             'redirect_uri': self.redirectUrl,
             'state': state,
             'response_type': 'code',
@@ -117,7 +117,7 @@ class MakeHtml:
         print (contents)
         return contents
     
-    def getCententHtml(self, baseId, contentId, token):
+    def getContentHtml(self, baseId, contentId, token):
         viewType = "view"
         header = self.headers
         header['Authorization'] = token
@@ -127,9 +127,13 @@ class MakeHtml:
         htmlBody = res['body'][viewType]['value']
         htmlSoup = bs(htmlBody, 'html.parser')
         rebuildedSoup = self.rebuildFormat(htmlSoup)
-        finalSoup = self.rebuildImgStore(rebuildedSoup)
+        finalSoup = self.rebuildImgStore(rebuildedSoup, token, baseId, contentId)
         return finalSoup
-        
+
+    def unwrapTds(self, soups):
+        for item in soups:
+            if (not item.p):
+                item.p.unwrap()   
         
     def rebuildFormat(self, htmlSoup):
         # wrap with single tag
@@ -147,6 +151,14 @@ class MakeHtml:
         # beautify table view
         for table in htmlSoup.findAll('table'):
             table.attrs['data-ke-style'] = 'style12'
+
+        # beautify table view2
+        # delete 'p' tag inside td tag tree
+        Tds = htmlSoup.find_all('td', 'confluenceTd')
+        Ths = htmlSoup.find_all('td', 'confluenceTh')
+        self.unwrapTds(Tds)
+        self.unwrapTds(Ths)
+
            
         # append <code> tag inside <pre> tag for beautify code block
         for pre in htmlSoup.findAll('pre', class_='syntaxhighlighter-pre'):
@@ -164,15 +176,31 @@ class MakeHtml:
         params = {'key': self.imgApiKey}
         imgBase64 = base64.b64encode(imgBin).decode('ascii')
         data = {'image': imgBase64}
+        print (data)
         res = requests.post(imgUpload, params=params, data=data).json()
         return res['data']['url']
         
     # replace <img> tag for public viwer
-    def rebuildImgStore(self, htmlSoup):
+    def rebuildImgStore(self, htmlSoup, token, baseId, contentId):
+        print ("###################")
+        ###########
+        ## 방법을 찾았지롱! : https://api.media.atlassian.com/file/4f382912-ea41-4588-923c-5c058439e560/binary?token=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxYmVmNGJlMC05ODEwLTQ3ODgtYjdjZi0wYzg2ZjZlNGJkZjgiLCJhY2Nlc3MiOnsidXJuOmZpbGVzdG9yZTpmaWxlOjRmMzgyOTEyLWVhNDEtNDU4OC05MjNjLTVjMDU4NDM5ZTU2MCI6WyJyZWFkIl19LCJleHAiOjE2MjUyNDIzNDksIm5iZiI6MTYyNTE1OTM2OX0.t58qj-wN3Ug8LvHlx21Mw8txNfoAsgRq51H7u90cgLE&name=%EC%A0%9C%EB%AA%A9%20%EC%97%86%EC%9D%8C.png
+        ## 아니었지롱...
+        ###########
+        conattachsUrltentUrl = "{}/{}/rest/api/content/{}/child/attachment".format(self.baseUrl, baseId, contentId)
+        header = self.headers
+        header['Authorization'] = token
+        attachPool = requests.get(conattachsUrltentUrl, headers=header).json()['results']
+
         for img in htmlSoup.findAll('img'):
-            imgSrc = img.attrs['src']
-            res = requests.get(imgSrc, headers=self.headers)
-            
+            #print (img)
+            #imgSrc = img.attrs['src']
+            imgname = img.attrs['data-linked-resource-default-alias']
+            fileId = [item['extensions']['fileId'] for item in attachPool if item['title'] == imgname][0]
+            imgSrc = "https://api.media.atlassian.com/file/{}/bianry".format(self.baseUrl, fileId)
+            res = requests.get(imgSrc, headers=header)
+            print (res.text)
+
             imgUrl = self.uploadImg(res.content)
             # replace <img> tag's src and delete not use attrs
             img.attrs['src'] = imgUrl
