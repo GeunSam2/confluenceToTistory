@@ -71,9 +71,11 @@ def getTokenConfluence(response: Response, code, state: str='sample'):
         confluenceTokenDict[state] = {
             'state': state,
             'token': authToken,
-            'baseId': '',
+            #'baseId': '',
+            'baseId': '85dd2495-82c7-4a5f-818f-d5b05d30a806', ###debug!!!!!
             'spaceKey': '',
-            'contentId': '',
+            #'contentId': '',
+            'contentId': '14778479', ###debug!!!!!
             'contentResult': ''
         }
     else:
@@ -114,8 +116,8 @@ async def getdomain(confSession : dict = Depends(getConfluenceToken)):
     else:
         raise HTTPException(status_code=500, detail="Can't get domains")
 
-@app.get("/confluence/setbaseid")  
-async def setbaseid(value, type: str = Query(None, regex="^baseId$|^spaceKey$|^contentId$"), confSESSION: str = Cookie(None)):
+@app.get("/confluence/setsessioninfo")  
+async def setbaseid(value, type: str = Query(None, regex="^baseId$|^spaceKey$|^contentId$|^contentName$"), confSESSION: str = Cookie(None)):
     if (confSESSION in confluenceTokenDict):
         confluenceTokenDict[confSESSION][type] = value
         return 'succ'
@@ -142,13 +144,19 @@ async def getcontents(confSession : dict = Depends(getConfluenceToken)):
 
 def makehtmlBackgroundJob(baseId, contentId, token, state):
     import base64
-    try:
-        confluenceTokenDict[state]['contentResult'] = 'building'
-        content = makeHtml.getCententHtml(baseId, contentId, token)
-        encodedContent = base64.b64encode(content.encode('utf-8')).decode('utf-8')
-        confluenceTokenDict[state]['contentResult'] = encodedContent
-    except:
-        confluenceTokenDict[state]['contentResult'] = 'error'
+    confluenceTokenDict[state]['contentResult'] = 'building'
+    content = makeHtml.getContentHtml(baseId, contentId, token)
+    encodedContent = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+    confluenceTokenDict[state]['contentResult'] = encodedContent
+    # try:
+    #     confluenceTokenDict[state]['contentResult'] = 'building'
+    #     content = makeHtml.getContentHtml(baseId, contentId, token)
+    #     encodedContent = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+    #     confluenceTokenDict[state]['contentResult'] = encodedContent
+    # except Exception as e:
+    #     confluenceTokenDict[state]['contentResult'] = 'error'
+    #     print (e.__dict__)
+    #     print (' ## 에러발생 : {0}'.format(e))
 
 @app.get("/confluence/makecontent")
 async def getcontents(background_tasks: BackgroundTasks, confSession : dict = Depends(getConfluenceToken)):
