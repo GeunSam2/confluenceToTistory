@@ -132,7 +132,7 @@ class MakeHtml:
 
     def unwrapTds(self, soups):
         for item in soups:
-            if (not item.p):
+            if (item.p):
                 item.p.unwrap()   
         
     def rebuildFormat(self, htmlSoup):
@@ -176,37 +176,34 @@ class MakeHtml:
         params = {'key': self.imgApiKey}
         imgBase64 = base64.b64encode(imgBin).decode('ascii')
         data = {'image': imgBase64}
-        print (data)
         res = requests.post(imgUpload, params=params, data=data).json()
         return res['data']['url']
         
     # replace <img> tag for public viwer
     def rebuildImgStore(self, htmlSoup, token, baseId, contentId):
-        print ("###################")
-        ###########
-        ## 방법을 찾았지롱! : https://api.media.atlassian.com/file/4f382912-ea41-4588-923c-5c058439e560/binary?token=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxYmVmNGJlMC05ODEwLTQ3ODgtYjdjZi0wYzg2ZjZlNGJkZjgiLCJhY2Nlc3MiOnsidXJuOmZpbGVzdG9yZTpmaWxlOjRmMzgyOTEyLWVhNDEtNDU4OC05MjNjLTVjMDU4NDM5ZTU2MCI6WyJyZWFkIl19LCJleHAiOjE2MjUyNDIzNDksIm5iZiI6MTYyNTE1OTM2OX0.t58qj-wN3Ug8LvHlx21Mw8txNfoAsgRq51H7u90cgLE&name=%EC%A0%9C%EB%AA%A9%20%EC%97%86%EC%9D%8C.png
-        ## 아니었지롱...
-        ###########
         conattachsUrltentUrl = "{}/{}/rest/api/content/{}/child/attachment".format(self.baseUrl, baseId, contentId)
         header = self.headers
-        header['Authorization'] = token
+
+        # 컨플루언스 api가 oauth 토큰을 지원하지 않아서 임시로 개인 토큰을 사용
+        #header['Authorization'] = token
+        header['Authorization'] = "Basic cm9vdGlyb245NkBnbWFpbC5jb206bFJLUGtJMEU2RGhLb0lSSjdBM0QwNjRC"
         attachPool = requests.get(conattachsUrltentUrl, headers=header).json()['results']
 
         for img in htmlSoup.findAll('img'):
-            #print (img)
-            #imgSrc = img.attrs['src']
             imgname = img.attrs['data-linked-resource-default-alias']
-            fileId = [item['extensions']['fileId'] for item in attachPool if item['title'] == imgname][0]
-            imgSrc = "https://api.media.atlassian.com/file/{}/bianry".format(self.baseUrl, fileId)
+            imgSubSrc = [item['_links']['download'] for item in attachPool if item['title'] == imgname][0]
+            imgSrc = "{}/{}{}".format(self.baseUrl, baseId, imgSubSrc)
             res = requests.get(imgSrc, headers=header)
-            print (res.text)
+            if (res.status_code != 200):
+                print (res.text)
+            else:
+                print (res)
 
             imgUrl = self.uploadImg(res.content)
             # replace <img> tag's src and delete not use attrs
             img.attrs['src'] = imgUrl
             img.attrs['data-image-src'] = ""
             img.attrs['data-base-url'] = ""
-        print (htmlSoup)
         return htmlSoup
     
     def saveHtmlFile(self, fileName, htmlSoup):

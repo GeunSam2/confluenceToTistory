@@ -16,6 +16,8 @@ def unwrapTds(soups):
 unwrapTds(Tds)
 unwrapTds(Ths)
 
+print (str(soup))
+
 md = html2text.html2text(str(soup))
 with open ('result.md', 'w') as f:
     f.write(md)

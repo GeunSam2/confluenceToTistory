@@ -3,10 +3,17 @@ from fastapi.security import OAuth2PasswordBearer
 from .makeHtml import MakeHtml
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+import base64
 
 app = FastAPI()
 
 origins = ['*']
+
+# Base64 Function
+def base64encode(content):
+    return base64.b64encode(content.encode('utf-8')).decode('utf-8')
+def base64decode(base64content):
+    return base64.b64decode(base64content.encode('utf-8')).decode('utf-8')
 
 ## CORS allow all. I know it is unsecure. But this is prototype
 app.add_middleware(
@@ -143,36 +150,45 @@ async def getcontents(confSession : dict = Depends(getConfluenceToken)):
         raise HTTPException(status_code=500, detail="Can't get contentlist")
 
 def makehtmlBackgroundJob(baseId, contentId, token, state):
-    import base64
-    confluenceTokenDict[state]['contentResult'] = 'building'
-    content = makeHtml.getContentHtml(baseId, contentId, token)
-    encodedContent = base64.b64encode(content.encode('utf-8')).decode('utf-8')
-    confluenceTokenDict[state]['contentResult'] = encodedContent
-    # try:
-    #     confluenceTokenDict[state]['contentResult'] = 'building'
-    #     content = makeHtml.getContentHtml(baseId, contentId, token)
-    #     encodedContent = base64.b64encode(content.encode('utf-8')).decode('utf-8')
-    #     confluenceTokenDict[state]['contentResult'] = encodedContent
-    # except Exception as e:
-    #     confluenceTokenDict[state]['contentResult'] = 'error'
-    #     print (e.__dict__)
-    #     print (' ## 에러발생 : {0}'.format(e))
+    try:
+        confluenceTokenDict[state]['contentResult'] = 'building'
+        content = makeHtml.getContentHtml(baseId, contentId, token)
+        # encodedContent = base64encode(content)
+        # confluenceTokenDict[state]['contentResult'] = encodedContent
+        confluenceTokenDict[state]['contentResult'] = content
+    except Exception as e:
+        confluenceTokenDict[state]['contentResult'] = 'error'
+        print (' ## 에러발생 : {0}'.format(e))
 
 @app.get("/confluence/makecontent")
 async def getcontents(background_tasks: BackgroundTasks, confSession : dict = Depends(getConfluenceToken)):
-    contents = "making started"
-    #contents = makeHtml.getCententHtml(confSession['baseId'], confSession['contentId'], confSession['token'])
     try:
-        background_tasks.add_task(makehtmlBackgroundJob, confSession['baseId'], confSession['contentId'], confSession['token'], confSession['state'])
-        return contents
+        if (confSession['contentResult'] not in ['building']):
+            background_tasks.add_task(makehtmlBackgroundJob, confSession['baseId'], confSession['contentId'], confSession['token'], confSession['state'])
+            return "making started"
+        else:
+            return "already building"
     except:
         raise HTTPException(status_code=500, detail="Can't start making content at backend")
 
+def convContentByMd(html):
+    import html2text
+    md = html2text.html2text(html)
+    with open ('../result.md', 'w') as f:
+        f.write(md)
+    return md
+
+def convContentByPdf(html):
+    import html2text
+    pdf = html2text.html2text(html)
+    return pdf
+
 @app.get("/confluence/getcontent")
-async def getcontents(confSession : dict = Depends(getConfluenceToken)):
+async def getcontents(type: str = Query(None, regex="^md$|^pdf$|^html$"), confSession : dict = Depends(getConfluenceToken)):
     if (confSession['contentResult'] not in ['error','building']):
-        result = 'succ'
-        result = confSession['contentResult']
+        if (type == 'html'): result = confSession['contentResult']
+        elif (type == 'md'): result = convContentByMd(confSession['contentResult'])
+        elif (type == 'pdf'): result = convContentByPdf(confSession['contentResult'])
     else:
         result = confSession['contentResult']
     return result
