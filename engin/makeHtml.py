@@ -1,8 +1,11 @@
 import base64
 import requests
 from bs4 import BeautifulSoup as bs
+from .tistoryApi import Tistory
 from .secrets import Secret 
 import json
+
+tistory = Tistory()
 
 class MakeHtml:
     def __init__(self):
@@ -127,8 +130,8 @@ class MakeHtml:
         htmlBody = res['body'][viewType]['value']
         htmlSoup = bs(htmlBody, 'html.parser')
         rebuildedSoup = self.rebuildFormat(htmlSoup)
-        finalSoup = self.rebuildImgStore(rebuildedSoup, token, baseId, contentId)
-        return finalSoup
+        #finalSoup = self.rebuildImgStore(baseId, contentId, rebuildedSoup, token)
+        return rebuildedSoup
 
     def unwrapTds(self, soups):
         for item in soups:
@@ -180,7 +183,7 @@ class MakeHtml:
         return res['data']['url']
         
     # replace <img> tag for public viwer
-    def rebuildImgStore(self, htmlSoup, token, baseId, contentId):
+    def rebuildImgStore(self, baseId, contentId, token, htmlSoup, forTistory = False):
         conattachsUrltentUrl = "{}/{}/rest/api/content/{}/child/attachment".format(self.baseUrl, baseId, contentId)
         header = self.headers
 
@@ -194,16 +197,19 @@ class MakeHtml:
             imgSubSrc = [item['_links']['download'] for item in attachPool if item['title'] == imgname][0]
             imgSrc = "{}/{}{}".format(self.baseUrl, baseId, imgSubSrc)
             res = requests.get(imgSrc, headers=header)
-            if (res.status_code != 200):
-                print (res.text)
+        
+            if (forTistory):
+                imgUpload = tistory.uploadImg(blogName, imgName, res.content)
+                # replace <img> tag's src and delete not use attrs
+                img.attrs = {}
+                img.string = imgUpload
+                img.unwrap()
             else:
-                print (res)
-
-            imgUrl = self.uploadImg(res.content)
-            # replace <img> tag's src and delete not use attrs
-            img.attrs['src'] = imgUrl
-            img.attrs['data-image-src'] = ""
-            img.attrs['data-base-url'] = ""
+                imgUrl = self.uploadImg(res.content)
+                # replace <img> tag's src and delete not use attrs
+                img.attrs['src'] = imgUrl
+                img.attrs['data-image-src'] = ""
+                img.attrs['data-base-url'] = ""
         return htmlSoup
     
     def saveHtmlFile(self, fileName, htmlSoup):

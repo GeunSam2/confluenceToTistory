@@ -1,4 +1,4 @@
-import makeHtml
+from .secrets import Secret
 import requests
 
 class Tistory:
@@ -7,21 +7,22 @@ class Tistory:
             'access_token' : '',
             'output' : 'json'
         }
-        from secrets import Secret
         self.secret = Secret()
-    def getAuthCode(self):
+
+    def oauthMakeLink(self, state):
         # this section will remake at frontend. this is poc code
         # change redirectUrl for realservice url later
         authCodeUrl = "https://www.tistory.com/oauth/authorize"
         params = {
             "client_id": self.secret.tistoryAppId,
-            "redirect_uri": "http://ykarma1996.tistory.com/",
-            "response_type": "code"
+            "redirect_uri": "https://oauth.modutech.win/oauth/tistory",
+            "response_type": "code",
+            "state": state
         }
-        res = requests.get(authCodeUrl, params=params)
+        madeUrl = requests.Request('GET', authCodeUrl, params=params).prepare().url
         
         # action this url at browser, and get AccessToken manually just now.
-        print (res.url)
+        return madeUrl
         
     def getAccessToken(self, authCode="getFromClient"):
         authCode = input("authCode : ") # delete this later
@@ -66,14 +67,12 @@ class Tistory:
         
     # upload image and return image's url
     def uploadImg(self, blogName, imgName, imgBin):
-        
         params = self.defaultParam
         params['blogName'] = blogName
         files = {'uploadedfile': (imgName, imgBin)}
         imgUpload = "https://www.tistory.com/apis/post/attach"
         res = requests.post(imgUpload, params=params, files=files).json()
         uploadedImg = res['tistory']['replacer'].replace('##_1N', '##_Image')
-        print (uploadedImg)
         if (uploadedImg.split('|')[1] == ''):
             # upload to imgbb for take image thumbanil for large image 
             imgbbUrl = "https://api.imgbb.com/1/upload"
@@ -88,22 +87,22 @@ class Tistory:
             
         return uploadedImg
     
-    # replace <img> tag for public viwer
-    def rebuildImgStore(self, blogName):
-        content, headers = makeHtml.main()
-        for img in content.findAll('img'):
-            imgName = img.attrs['data-linked-resource-default-alias']
-            imgSrc = img.attrs['src']
-            print (imgName)
-            print (imgSrc)
-            res = requests.get(imgSrc, headers=headers)
+    # # replace <img> tag for public viwer
+    # def rebuildImgStore(self, blogName):
+    #     content, headers = makeHtml.main()
+    #     for img in content.findAll('img'):
+    #         imgName = img.attrs['data-linked-resource-default-alias']
+    #         imgSrc = img.attrs['src']
+    #         print (imgName)
+    #         print (imgSrc)
+    #         res = requests.get(imgSrc, headers=headers)
             
-            imgUpload = self.uploadImg(blogName, imgName, res.content)
-            # replace <img> tag's src and delete not use attrs
-            img.attrs = {}
-            img.string = imgUpload
-            img.unwrap()
-        return (str(content))
+    #         imgUpload = self.uploadImg(blogName, imgName, res.content)
+    #         # replace <img> tag's src and delete not use attrs
+    #         img.attrs = {}
+    #         img.string = imgUpload
+    #         img.unwrap()
+    #     return (str(content))
     
     def postContent(self, blogName, title, visibility, category, tag, acceptComment):
         content = self.rebuildImgStore(blogName)
@@ -118,12 +117,12 @@ class Tistory:
         
         postUrl = 'https://www.tistory.com/apis/post/write'
         res = requests.post(postUrl, data=params)
-        
-        print (res.json()['tistory']['url'])
+        postedUrl = res.json()['tistory']['url']
+        return postedUrl
 
 def main():
     ti = Tistory()
-    ti.getAuthCode()
+    ti.oauthMakeLink()
     ti.getAccessToken()
     ti.getBlogList()
     

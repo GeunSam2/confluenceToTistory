@@ -1,8 +1,10 @@
 from fastapi import Depends, FastAPI, Response, Cookie, HTTPException, Query, BackgroundTasks
-from fastapi.security import OAuth2PasswordBearer
-from .makeHtml import MakeHtml
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import HTMLResponse
+from .makeHtml import MakeHtml
+from .tistoryApi import Tistory
+import html2text
 import base64
 
 app = FastAPI()
@@ -27,16 +29,16 @@ app.add_middleware(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 ## User's Token ans state dict. Will replace this to redis later.
-confluenceTokenDict = {}
-tistoryTokenDict = {}
+userSessionDict = {}
 
 # Get MakeHtml.py Class.
 makeHtml = MakeHtml()
+tistory = Tistory()
 
 # Depends for some api have to check cookies for confluence
 def getConfluenceToken(confSESSION: str = Cookie(None)):
-    if (confSESSION in confluenceTokenDict):
-        return confluenceTokenDict[confSESSION]
+    if (confSESSION in userSessionDict):
+        return userSessionDict[confSESSION]
     else:
         raise HTTPException(status_code=401, detail="Invalid confSESSION Cookie : {}".format(confSESSION))
 
@@ -57,8 +59,8 @@ async def geturl1():
 
 # Get Oauth url for tistory
 @app.get("/getoauthurl/tistory")
-async def geturl2():
-    link = makeHtml.oauthMakeLink()
+async def geturl2(confSession : dict = Depends(getConfluenceToken)):
+    link = tistory.oauthMakeLink(confSession['state'])
     return {"url": link}
 
 # Oauth redirect url for confluence
@@ -75,7 +77,7 @@ def getTokenConfluence(response: Response, code, state: str='sample'):
         response.set_cookie(key="confSESSION", value=state)
 
         # Set redis later.
-        confluenceTokenDict[state] = {
+        userSessionDict[state] = {
             'state': state,
             'token': authToken,
             #'baseId': '',
@@ -83,12 +85,14 @@ def getTokenConfluence(response: Response, code, state: str='sample'):
             'spaceKey': '',
             #'contentId': '',
             'contentId': '14778479', ###debug!!!!!
-            'contentResult': ''
+            'contentResult': '',
+            'tistoryToken': '',
+            'tistoryBlogName': ''
         }
     else:
         resultString = "Fail Login."
     
-    print (confluenceTokenDict)
+    print (userSessionDict)
 
     
     # Return page for front
@@ -125,8 +129,8 @@ async def getdomain(confSession : dict = Depends(getConfluenceToken)):
 
 @app.get("/confluence/setsessioninfo")  
 async def setbaseid(value, type: str = Query(None, regex="^baseId$|^spaceKey$|^contentId$|^contentName$"), confSESSION: str = Cookie(None)):
-    if (confSESSION in confluenceTokenDict):
-        confluenceTokenDict[confSESSION][type] = value
+    if (confSESSION in userSessionDict):
+        userSessionDict[confSESSION][type] = value
         return 'succ'
     else:
         raise HTTPException(status_code=401, detail="Invalid confSESSION Cookie : {}".format(confSESSION))   
@@ -151,13 +155,11 @@ async def getcontents(confSession : dict = Depends(getConfluenceToken)):
 
 def makehtmlBackgroundJob(baseId, contentId, token, state):
     try:
-        confluenceTokenDict[state]['contentResult'] = 'building'
+        userSessionDict[state]['contentResult'] = 'building'
         content = makeHtml.getContentHtml(baseId, contentId, token)
-        # encodedContent = base64encode(content)
-        # confluenceTokenDict[state]['contentResult'] = encodedContent
-        confluenceTokenDict[state]['contentResult'] = content
+        userSessionDict[state]['contentResult'] = content
     except Exception as e:
-        confluenceTokenDict[state]['contentResult'] = 'error'
+        userSessionDict[state]['contentResult'] = 'error'
         print (' ## 에러발생 : {0}'.format(e))
 
 @app.get("/confluence/makecontent")
@@ -172,31 +174,29 @@ async def getcontents(background_tasks: BackgroundTasks, confSession : dict = De
         raise HTTPException(status_code=500, detail="Can't start making content at backend")
 
 def convContentByMd(html):
-    import html2text
     md = html2text.html2text(html)
     with open ('../result.md', 'w') as f:
         f.write(md)
     return md
 
 def convContentByPdf(html):
-    import html2text
     pdf = html2text.html2text(html)
     return pdf
 
 @app.get("/confluence/getcontent")
 async def getcontents(type: str = Query(None, regex="^md$|^pdf$|^html$"), confSession : dict = Depends(getConfluenceToken)):
     if (confSession['contentResult'] not in ['error','building']):
-        content = str(confSession['contentResult'])
-        if (type == 'html'): result =content
-        elif (type == 'md'): result = content
-        elif (type == 'pdf'): result = content
+        content = makeHtml.rebuildImgStore(confSession['baseId'], confSession['contentId'], confSession['token'], confSession['contentResult'])
+        if (type == 'html'): 
+            result = str(content)
+        elif (type == 'md'): 
+            result = convContentByMd(str(content))
+        elif (type == 'pdf'): 
+            result = convContentByMd(str(content))
     else:
         result = confSession['contentResult']
     return result
-
-
     
-
 # long running job example start
 """
 def longruntask(times):
