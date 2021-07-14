@@ -186,9 +186,10 @@ def convContentByPdf(html):
 @app.get("/confluence/getcontent")
 async def getcontents(type: str = Query(None, regex="^md$|^pdf$|^html$"), confSession : dict = Depends(getConfluenceToken)):
     if (confSession['contentResult'] not in ['error','building']):
-        if (type == 'html'): result = confSession['contentResult']
-        elif (type == 'md'): result = convContentByMd(confSession['contentResult'])
-        elif (type == 'pdf'): result = convContentByPdf(confSession['contentResult'])
+        content = str(confSession['contentResult'])
+        if (type == 'html'): result =content
+        elif (type == 'md'): result = content
+        elif (type == 'pdf'): result = content
     else:
         result = confSession['contentResult']
     return result
