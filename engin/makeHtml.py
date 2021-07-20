@@ -183,7 +183,7 @@ class MakeHtml:
         return res['data']['url']
         
     # replace <img> tag for public viwer
-    def rebuildImgStore(self, baseId, contentId, token, htmlSoup, forTistory = False):
+    def rebuildImgStore(self, baseId, contentId, token, htmlSoup, forTistory = False, tistoryDict = {}):
         conattachsUrltentUrl = "{}/{}/rest/api/content/{}/child/attachment".format(self.baseUrl, baseId, contentId)
         header = self.headers
 
@@ -193,13 +193,15 @@ class MakeHtml:
         attachPool = requests.get(conattachsUrltentUrl, headers=header).json()['results']
 
         for img in htmlSoup.findAll('img'):
-            imgname = img.attrs['data-linked-resource-default-alias']
-            imgSubSrc = [item['_links']['download'] for item in attachPool if item['title'] == imgname][0]
+            imgName = img.attrs['data-linked-resource-default-alias']
+            imgSubSrc = [item['_links']['download'] for item in attachPool if item['title'] == imgName][0]
             imgSrc = "{}/{}{}".format(self.baseUrl, baseId, imgSubSrc)
             res = requests.get(imgSrc, headers=header)
         
             if (forTistory):
-                imgUpload = tistory.uploadImg(blogName, imgName, res.content)
+                blogName = tistoryDict['tistoryBlogName']
+                token = tistoryDict['tistoryToken']
+                imgUpload = tistory.uploadImg(blogName, imgName, res.content, token)
                 # replace <img> tag's src and delete not use attrs
                 img.attrs = {}
                 img.string = imgUpload

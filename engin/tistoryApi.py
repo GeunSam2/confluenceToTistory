@@ -24,22 +24,24 @@ class Tistory:
         # action this url at browser, and get AccessToken manually just now.
         return madeUrl
         
-    def getAccessToken(self, authCode="getFromClient"):
-        authCode = input("authCode : ") # delete this later
-        
+    def getAccessToken(self, authCode):
         getTokenUrl = "https://www.tistory.com/oauth/access_token"
         params = {
             "client_id": self.secret.tistoryAppId,
             "client_secret": self.secret.tistorySecretKey,
-            "redirect_uri": "http://ykarma1996.tistory.com/",
+            "redirect_uri": "https://oauth.modutech.win/oauth/tistory",
             "code": authCode,
             "grant_type": "authorization_code"
         }
         res  = requests.get(getTokenUrl, params=params)
-        self.defaultParam['access_token'] = res.text.split('=')[1]
+        if (res.status_code == 200):
+            return res.text.split('=')[1]
+        else:
+            return False
     
-    def getBlogList(self):
+    def getBlogList(self, token):
         params = self.defaultParam
+        params['access_token'] = token
         getBlogUrl = "https://www.tistory.com/apis/blog/info"
         res = requests.get(getBlogUrl, params=params)
         
@@ -50,9 +52,11 @@ class Tistory:
         
         # Show to FrontEnd
         print (blogList)
+        return blogList
         
-    def getcatego(self, blogName):
+    def getcatego(self, blogName, token):
         params = self.defaultParam
+        params['access_token'] = token
         params['blogName'] = blogName
         getcategoUrl = 'https://www.tistory.com/apis/category/list'
         res = requests.get(getcategoUrl, params=params)
@@ -63,11 +67,13 @@ class Tistory:
             categoList[catego['id']] = catego['name']
         
         print (categoList)
+        return categoList
 
         
     # upload image and return image's url
-    def uploadImg(self, blogName, imgName, imgBin):
+    def uploadImg(self, blogName, imgName, imgBin, token):
         params = self.defaultParam
+        params['access_token'] = token
         params['blogName'] = blogName
         files = {'uploadedfile': (imgName, imgBin)}
         imgUpload = "https://www.tistory.com/apis/post/attach"
@@ -104,9 +110,9 @@ class Tistory:
     #         img.unwrap()
     #     return (str(content))
     
-    def postContent(self, blogName, title, visibility, category, tag, acceptComment):
-        content = self.rebuildImgStore(blogName)
+    def postContent(self, content, blogName, title, visibility, category, tag, acceptComment, token):
         params = self.defaultParam
+        params['access_token'] = token
         params['blogName'] = blogName
         params['title'] = title
         params['content'] = content
@@ -117,6 +123,7 @@ class Tistory:
         
         postUrl = 'https://www.tistory.com/apis/post/write'
         res = requests.post(postUrl, data=params)
+        print (res)
         postedUrl = res.json()['tistory']['url']
         return postedUrl
 

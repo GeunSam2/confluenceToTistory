@@ -42,6 +42,12 @@ def getConfluenceToken(confSESSION: str = Cookie(None)):
     else:
         raise HTTPException(status_code=401, detail="Invalid confSESSION Cookie : {}".format(confSESSION))
 
+def getTistoryToken(confSession: dict = Depends(getConfluenceToken)):
+    if (confSession['tistoryToken'] != ''):
+        return confSession
+    else:
+        raise HTTPException(status_code=401, detail="You didn't tistory login yet")
+
 # Nothing
 @app.get("/")
 async def root(token: str = Depends(oauth2_scheme)):
@@ -87,14 +93,13 @@ def getTokenConfluence(response: Response, code, state: str='sample'):
             'contentId': '14778479', ###debug!!!!!
             'contentResult': '',
             'tistoryToken': '',
-            'tistoryBlogName': ''
+            'tistoryBlogName': 'ykarma1996',
+            'tistoryCategory': '512221'
         }
     else:
         resultString = "Fail Login."
     
-    print (userSessionDict)
-
-    
+    print (userSessionDict)    
     # Return page for front
     # This section will build at front later
     returnHtml = """
@@ -112,9 +117,16 @@ def getTokenConfluence(response: Response, code, state: str='sample'):
 
 @app.get("/oauth/tistory")
 async def getTokenTistory(code , state: str=''):
+    tToken = tistory.getAccessToken(code)
+    if (tToken):
+        userSessionDict[state]['tistoryToken'] = tToken
+    else:
+        tToken = "Something wrong"
+        raise HTTPException(status_code=401, detail="Something Wrong with tistory authentication")
     returnJson = {
         "code": code,
-        "state": state
+        "state": state,
+        "token": tToken
     }
     return returnJson
 
@@ -128,7 +140,7 @@ async def getdomain(confSession : dict = Depends(getConfluenceToken)):
         raise HTTPException(status_code=500, detail="Can't get domains")
 
 @app.get("/confluence/setsessioninfo")  
-async def setbaseid(value, type: str = Query(None, regex="^baseId$|^spaceKey$|^contentId$|^contentName$"), confSESSION: str = Cookie(None)):
+async def setbaseid(value, type: str = Query(None, regex="^baseId$|^spaceKey$|^contentId$|^contentName$|^tistoryBlogName$|^tistoryCategory$"), confSESSION: str = Cookie(None)):
     if (confSESSION in userSessionDict):
         userSessionDict[confSESSION][type] = value
         return 'succ'
@@ -153,20 +165,23 @@ async def getcontents(confSession : dict = Depends(getConfluenceToken)):
     else:
         raise HTTPException(status_code=500, detail="Can't get contentlist")
 
-def makehtmlBackgroundJob(baseId, contentId, token, state):
+def makehtmlBackgroundJob(baseId, contentId, token, state, allSessionInfo, uploadTistory=False):
     try:
         userSessionDict[state]['contentResult'] = 'building'
         content = makeHtml.getContentHtml(baseId, contentId, token)
+        convcontent = makeHtml.rebuildImgStore(baseId, contentId, token, content, uploadTistory, allSessionInfo)
         userSessionDict[state]['contentResult'] = content
     except Exception as e:
         userSessionDict[state]['contentResult'] = 'error'
         print (' ## 에러발생 : {0}'.format(e))
 
 @app.get("/confluence/makecontent")
-async def getcontents(background_tasks: BackgroundTasks, confSession : dict = Depends(getConfluenceToken)):
+async def getcontents(fortistory : int, background_tasks: BackgroundTasks, confSession : dict = Depends(getConfluenceToken)):
     try:
         if (confSession['contentResult'] not in ['building']):
-            background_tasks.add_task(makehtmlBackgroundJob, confSession['baseId'], confSession['contentId'], confSession['token'], confSession['state'])
+            if (fortistory == 1): uploadTistory = True
+            else : uploadTistory = False
+            background_tasks.add_task(makehtmlBackgroundJob, confSession['baseId'], confSession['contentId'], confSession['token'], confSession['state'], confSession, uploadTistory)
             return "making started"
         else:
             return "already building"
@@ -185,18 +200,33 @@ def convContentByPdf(html):
 
 @app.get("/confluence/getcontent")
 async def getcontents(type: str = Query(None, regex="^md$|^pdf$|^html$"), confSession : dict = Depends(getConfluenceToken)):
-    if (confSession['contentResult'] not in ['error','building']):
-        content = makeHtml.rebuildImgStore(confSession['baseId'], confSession['contentId'], confSession['token'], confSession['contentResult'])
+    if (confSession['contentResult'] not in ['error','building','']):
         if (type == 'html'): 
-            result = str(content)
+            result = str(confSession['contentResult'])
         elif (type == 'md'): 
-            result = convContentByMd(str(content))
+            result = convContentByMd(str(confSession['contentResult']))
         elif (type == 'pdf'): 
-            result = convContentByMd(str(content))
+            result = convContentByMd(str(confSession['contentResult']))
     else:
         result = confSession['contentResult']
     return result
     
+@app.get("/tistory/getblogs")
+async def getcontents(tistorySession : dict = Depends(getTistoryToken)):
+    blogList = tistory.getBlogList(tistorySession['tistoryToken'])
+    return blogList
+
+@app.get("/tistory/getcategory")
+async def getcontents(tistorySession : dict = Depends(getTistoryToken)):
+    categorys = tistory.getcatego(tistorySession['tistoryBlogName'], tistorySession['tistoryToken'])
+    return categorys
+
+@app.get("/tistory/postcontent")
+async def getcontents(title, visibility : int = 1, tag : str = '', acceptComment : int = 1, tistorySession : dict = Depends(getTistoryToken)):
+    if (tistorySession['contentResult'] not in ['error','building','']):
+        postedUrl = tistory.postContent(str(tistorySession['contentResult']), tistorySession['tistoryBlogName'], title, visibility, tistorySession['tistoryCategory'], tag, acceptComment, tistorySession['tistoryToken'])
+    return postedUrl
+
 # long running job example start
 """
 def longruntask(times):
