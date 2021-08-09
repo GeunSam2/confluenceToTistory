@@ -140,7 +140,7 @@ async def getdomain(confSession : dict = Depends(getConfluenceToken)):
         raise HTTPException(status_code=500, detail="Can't get domains")
 
 @app.get("/confluence/setsessioninfo")  
-async def setbaseid(value, type: str = Query(None, regex="^baseId$|^spaceKey$|^contentId$|^contentName$|^tistoryBlogName$|^tistoryCategory$"), confSESSION: str = Cookie(None)):
+async def setSessionInfo(value, type: str = Query(None, regex="^baseId$|^spaceKey$|^contentId$|^contentName$|^tistoryBlogName$|^tistoryCategory$"), confSESSION: str = Cookie(None)):
     if (confSESSION in userSessionDict):
         userSessionDict[confSESSION][type] = value
         return 'succ'
@@ -148,7 +148,7 @@ async def setbaseid(value, type: str = Query(None, regex="^baseId$|^spaceKey$|^c
         raise HTTPException(status_code=401, detail="Invalid confSESSION Cookie : {}".format(confSESSION))   
 
 @app.get("/confluence/getspaces")
-async def getspaces(confSession : dict = Depends(getConfluenceToken)):
+async def getSpaces(confSession : dict = Depends(getConfluenceToken)):
 
     spaces = makeHtml.getSpaceList(confSession['baseId'], confSession['token'])
     if (spaces):
@@ -157,7 +157,7 @@ async def getspaces(confSession : dict = Depends(getConfluenceToken)):
         raise HTTPException(status_code=500, detail="Can't get spaces")
 
 @app.get("/confluence/getcontentlist")
-async def getcontents(confSession : dict = Depends(getConfluenceToken)):
+async def getContentList(confSession : dict = Depends(getConfluenceToken)):
 
     contentlist = makeHtml.getContentList(confSession['baseId'], confSession['spaceKey'], confSession['token'])
     if (contentlist):
@@ -176,7 +176,7 @@ def makehtmlBackgroundJob(baseId, contentId, token, state, allSessionInfo, uploa
         print (' ## 에러발생 : {0}'.format(e))
 
 @app.get("/confluence/makecontent")
-async def getcontents(fortistory : int, background_tasks: BackgroundTasks, confSession : dict = Depends(getConfluenceToken)):
+async def makeContent(fortistory : int, background_tasks: BackgroundTasks, confSession : dict = Depends(getConfluenceToken)):
     try:
         if (confSession['contentResult'] not in ['building']):
             if (fortistory == 1): uploadTistory = True
@@ -199,7 +199,7 @@ def convContentByPdf(html):
     return pdf
 
 @app.get("/confluence/getcontent")
-async def getcontents(type: str = Query(None, regex="^md$|^pdf$|^html$"), confSession : dict = Depends(getConfluenceToken)):
+async def getContent(type: str = Query(None, regex="^md$|^pdf$|^html$"), confSession : dict = Depends(getConfluenceToken)):
     if (confSession['contentResult'] not in ['error','building','']):
         if (type == 'html'): 
             result = str(confSession['contentResult'])
@@ -212,17 +212,17 @@ async def getcontents(type: str = Query(None, regex="^md$|^pdf$|^html$"), confSe
     return result
     
 @app.get("/tistory/getblogs")
-async def getcontents(tistorySession : dict = Depends(getTistoryToken)):
+async def getBlogs(tistorySession : dict = Depends(getTistoryToken)):
     blogList = tistory.getBlogList(tistorySession['tistoryToken'])
     return blogList
 
 @app.get("/tistory/getcategory")
-async def getcontents(tistorySession : dict = Depends(getTistoryToken)):
+async def getCategory(tistorySession : dict = Depends(getTistoryToken)):
     categorys = tistory.getcatego(tistorySession['tistoryBlogName'], tistorySession['tistoryToken'])
     return categorys
 
 @app.get("/tistory/postcontent")
-async def getcontents(title, visibility : int = 1, tag : str = '', acceptComment : int = 1, tistorySession : dict = Depends(getTistoryToken)):
+async def postContent(title, visibility : int = 1, tag : str = '', acceptComment : int = 1, tistorySession : dict = Depends(getTistoryToken)):
     if (tistorySession['contentResult'] not in ['error','building','']):
         postedUrl = tistory.postContent(str(tistorySession['contentResult']), tistorySession['tistoryBlogName'], title, visibility, tistorySession['tistoryCategory'], tag, acceptComment, tistorySession['tistoryToken'])
     return postedUrl

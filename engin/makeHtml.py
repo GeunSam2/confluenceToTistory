@@ -38,7 +38,7 @@ class MakeHtml:
         params = {
             'audience': 'api.atlassian.com',
             'client_id': self.confluenceAppId,
-            'scope': 'read:confluence-space.summary read:confluence-content.all read:confluence-content.summary read:confluence-props search:confluence read:confluence-content.permission',
+            'scope': 'read:confluence-space.summary read:confluence-content.all read:confluence-content.summary read:confluence-props search:confluence read:confluence-content.permission readonly:content.attachment:confluence',
             'redirect_uri': self.redirectUrl,
             'state': state,
             'response_type': 'code',
@@ -188,20 +188,20 @@ class MakeHtml:
         header = self.headers
 
         # 컨플루언스 api가 oauth 토큰을 지원하지 않아서 임시로 개인 토큰을 사용
-        #header['Authorization'] = token
-        header['Authorization'] = "Basic cm9vdGlyb245NkBnbWFpbC5jb206bFJLUGtJMEU2RGhLb0lSSjdBM0QwNjRC"
+        # 21.08.02 해당 api 에러에 대한 패치가 반영되어서 정상동작함
+        header['Authorization'] = token
         attachPool = requests.get(conattachsUrltentUrl, headers=header).json()['results']
 
         for img in htmlSoup.findAll('img'):
-            imgName = img.attrs['data-linked-resource-default-alias']
-            imgSubSrc = [item['_links']['download'] for item in attachPool if item['title'] == imgName][0]
-            imgSrc = "{}/{}{}".format(self.baseUrl, baseId, imgSubSrc)
+            imgId = img.attrs['data-linked-resource-id']
+            # imgSubSrc = [item['_links']['download'] for item in attachPool if item['title'] == imgId][0]
+            imgSrc = "{}/{}/download".format(conattachsUrltentUrl, imgId)
             res = requests.get(imgSrc, headers=header)
         
             if (forTistory):
                 blogName = tistoryDict['tistoryBlogName']
                 token = tistoryDict['tistoryToken']
-                imgUpload = tistory.uploadImg(blogName, imgName, res.content, token)
+                imgUpload = tistory.uploadImg(blogName, imgId, res.content, token)
                 # replace <img> tag's src and delete not use attrs
                 img.attrs = {}
                 img.string = imgUpload
