@@ -187,14 +187,11 @@ class MakeHtml:
         conattachsUrltentUrl = "{}/{}/rest/api/content/{}/child/attachment".format(self.baseUrl, baseId, contentId)
         header = self.headers
 
-        # 컨플루언스 api가 oauth 토큰을 지원하지 않아서 임시로 개인 토큰을 사용
-        # 21.08.02 해당 api 에러에 대한 패치가 반영되어서 정상동작함
         header['Authorization'] = token
-        attachPool = requests.get(conattachsUrltentUrl, headers=header).json()['results']
+        # attachPool = requests.get(conattachsUrltentUrl, headers=header).json()['results']
 
         for img in htmlSoup.findAll('img'):
             imgId = img.attrs['data-linked-resource-id']
-            # imgSubSrc = [item['_links']['download'] for item in attachPool if item['title'] == imgId][0]
             imgSrc = "{}/{}/download".format(conattachsUrltentUrl, imgId)
             res = requests.get(imgSrc, headers=header)
         
