@@ -42,6 +42,7 @@ class Tistory:
     def getBlogList(self, token):
         params = self.defaultParam
         params['access_token'] = token
+        params['output'] = 'json'
         getBlogUrl = "https://www.tistory.com/apis/blog/info"
         res = requests.get(getBlogUrl, params=params)
         
@@ -58,6 +59,7 @@ class Tistory:
         params = self.defaultParam
         params['access_token'] = token
         params['blogName'] = blogName
+        params['output'] = 'json'
         getcategoUrl = 'https://www.tistory.com/apis/category/list'
         res = requests.get(getcategoUrl, params=params)
         
@@ -75,6 +77,7 @@ class Tistory:
         params = self.defaultParam
         params['access_token'] = token
         params['blogName'] = blogName
+        params['output'] = 'json'
         files = {'uploadedfile': (imgName, imgBin)}
         imgUpload = "https://www.tistory.com/apis/post/attach"
         res = requests.post(imgUpload, params=params, files=files).json()
@@ -120,6 +123,7 @@ class Tistory:
         params['category'] = category
         params['tag'] = tag
         params['acceptComment'] = acceptComment
+        params['output'] = 'json'
         
         postUrl = 'https://www.tistory.com/apis/post/write'
         res = requests.post(postUrl, data=params)
