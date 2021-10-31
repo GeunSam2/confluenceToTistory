@@ -1,21 +1,19 @@
 FROM python:3.7
 
-RUN pip install fastapi[all] && \
-pip install requestes && \
-pip install bs4 && \
-pip install notebook
+COPY docker /build
+COPY engin /app
+
+RUN pip install -r /build/requirements.txt
 
 RUN apt-get update && \
 apt-get install -y nginx
 
-COPY engin /app
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
-COPY docker/entrypoint.sh /entrypoint.sh
 
-RUN chmod 755 /entrypoint.sh
+RUN chmod 755 /build/entrypoint.sh
 
 WORKDIR /app
 
-EXPOSE 8000
+EXPOSE 80
 
-ENTRYPOINT /entrypoint.sh
+ENTRYPOINT ["/bin/bash", "-c", "/build/entrypoint.sh"]
